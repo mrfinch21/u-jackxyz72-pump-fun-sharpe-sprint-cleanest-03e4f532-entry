@@ -294,12 +294,11 @@ export function createStrategy(p: Params = DEFAULT_PARAMS) {
           } else if (isDev) {
             c.devSold = true;
           }
-        } else {
+        } else if (e.event === 'CompleteEvent') {
           const c = coins.get(e.mint);
-          if (c !== undefined) {
-            c.complete = true;
-            c.done = true;
-          }
+          if (c === undefined) continue;
+          c.complete = true;
+          c.done = true;
         }
       }
 
@@ -483,7 +482,10 @@ export function createStrategy(p: Params = DEFAULT_PARAMS) {
             if (curve === undefined || curve.complete) continue;
             if (Number(curve.real_quote_reserves) / LAMPORTS < p.probeMinRqSol) continue;
             if (free < p.probeSol + 2 * tx) break;
-            orders.push({ side: 'buy', mint, quote_lamports: BigInt(Math.floor(p.probeSol * LAMPORTS)), max_slippage_bps: p.buySlipBps });
+            // A probe is one 0.011 SOL buy now; the probe-sell section above closes it whole
+            // as soon as the buy lands, so the slot is free again within a few slots.
+            const lamports = BigInt(Math.floor(p.probeSol * LAMPORTS));
+            orders.push({ side: 'buy', mint, quote_lamports: lamports, max_slippage_bps: p.buySlipBps });
             probes.set(mint, false);
             free -= p.probeSol + tx;
           }
